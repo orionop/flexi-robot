@@ -4,11 +4,14 @@ import glob
 from scipy.spatial.transform import Slerp, Rotation
 
 def process_data():
-    case_files = sorted(glob.glob("case*_processed.csv"))
+    case_files = sorted(glob.glob("../raw_mocap_data/Case*.csv"))
     all_raw_samples = []
 
     for file in case_files:
         df = pd.read_csv(file)
+        # Drop rows where any pose data is NaN
+        pose_cols = ['x', 'y', 'z', 'qx', 'qy', 'qz', 'qw']
+        df = df.dropna(subset=pose_cols, how='any')
         
         needed_bodies = ['ST_A', 'ST_B', 'ST_C', 'ST_D', 'snake_tip']
         if not all(rb in df["RigidBody"].unique() for rb in needed_bodies):
