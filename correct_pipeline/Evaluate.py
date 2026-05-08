@@ -27,7 +27,8 @@ def evaluate_models():
     # Load models
     fk_model = tf.keras.models.load_model(
         "forward_model_v2.keras", 
-        custom_objects={'quaternion_loss': quaternion_loss}
+        custom_objects={'quaternion_loss': quaternion_loss},
+        safe_mode=False
     )
     ik_model = tf.keras.models.load_model("inverse_model_v2.keras")
     
