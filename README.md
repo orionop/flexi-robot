@@ -1,4 +1,4 @@
-# Flexi-Robot: Neural Network Kinematics for Tendon-Driven Soft Robotic Arm
+# Flexi-Robot: Neural Network Kinematics for Tendon-Driven Soft Robotic Manipulator
 
 Forward and Inverse Kinematics modeling of a 5-segment tendon-driven soft robotic arm using neural networks.
 
