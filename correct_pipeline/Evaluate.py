@@ -24,13 +24,16 @@ def evaluate_models():
     actuation_scaler = joblib.load("actuation_scaler.pkl")
     max_act = actuation_scaler["max_act"]
     
-    # Load models
-    fk_model = tf.keras.models.load_model(
-        "forward_model_v2.keras", 
-        custom_objects={'quaternion_loss': quaternion_loss},
-        safe_mode=False
-    )
-    ik_model = tf.keras.models.load_model("inverse_model_v2.keras")
+    from Train_ForwardNN_v2 import build_forward_model
+    from Train_InverseNN_v2 import build_inverse_model
+    
+    # Load models by building the architecture and loading weights
+    # This bypasses Keras serialization bugs across versions
+    fk_model = build_forward_model()
+    fk_model.load_weights("forward_model_v2.keras")
+    
+    ik_model = build_inverse_model()
+    ik_model.load_weights("inverse_model_v2.keras")
     
     print("--- Forward Kinematics Evaluation ---")
     pos_pred_scaled, quat_pred = fk_model.predict(actuations, verbose=0)

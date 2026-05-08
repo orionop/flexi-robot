@@ -26,8 +26,14 @@ def generate_figures():
     quat_true = df[['qx', 'qy', 'qz', 'qw']].values
     
     # Load Models and Scalers
-    fk_model = tf.keras.models.load_model("forward_model_v2.keras", custom_objects={'quaternion_loss': quaternion_loss})
-    ik_model = tf.keras.models.load_model("inverse_model_v2.keras")
+    from Train_ForwardNN_v2 import build_forward_model
+    from Train_InverseNN_v2 import build_inverse_model
+    
+    fk_model = build_forward_model()
+    fk_model.load_weights("forward_model_v2.keras")
+    
+    ik_model = build_inverse_model()
+    ik_model.load_weights("inverse_model_v2.keras")
     scaler_pos_fwd = joblib.load("scaler_pos_forward.pkl")
     scaler_pos_inv = joblib.load("scaler_pos_inverse.pkl")
     max_act = joblib.load("actuation_scaler.pkl")["max_act"]
