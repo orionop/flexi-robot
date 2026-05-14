@@ -28,10 +28,4 @@ Contains the mathematically rigorous, dual-head neural network pipeline:
 ### `/legacy_data_and_models/`
 - Generated artifacts, `.h5` models, and Excel sheets produced by the legacy scripts.
 
-## Dependencies
 
-- Python 3.x
-- TensorFlow 2.x
-- NumPy & Pandas
-- SciPy (Spatial Transforms)
-- scikit-learn & joblib
