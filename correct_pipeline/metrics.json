@@ -1,9 +1,9 @@
 {
-    "fk_pos_rmse_mm": 79.44877358858015,
-    "fk_pos_mae_mm": 68.28444212512103,
-    "fk_angle_rmse_deg": 28.065070596932504,
-    "fk_angle_mae_deg": 24.029965912735662,
-    "ik_act_rmse_mm": 32.758351676124796,
-    "ik_act_mae_mm": 27.832472879737356,
-    "roundtrip_act_rmse_mm": 51.651975475115876
+    "fk_pos_rmse_mm": 165.62467512851083,
+    "fk_pos_mae_mm": 145.17053606829924,
+    "fk_angle_rmse_deg": 56.3745593019162,
+    "fk_angle_mae_deg": 53.24468261842126,
+    "ik_act_rmse_mm": 99.58098140648006,
+    "ik_act_mae_mm": 91.4567626688656,
+    "roundtrip_act_rmse_mm": 42.35638244531815
 }

@@ -22,24 +22,19 @@ def position_loss(y_true, y_pred):
 def build_forward_model():
     inputs = layers.Input(shape=(2,), name='actuation')
     
-    # Shared backbone
-    x = layers.Dense(64, activation='relu')(inputs)
+    # Smaller backbone
+    x = layers.Dense(16, activation='relu')(inputs)
     x = layers.BatchNormalization()(x)
-    x = layers.Dropout(0.1)(x)
-    
-    x = layers.Dense(128, activation='relu')(x)
+    x = layers.Dense(32, activation='relu')(x)
     x = layers.BatchNormalization()(x)
-    x = layers.Dropout(0.1)(x)
-    
-    x = layers.Dense(128, activation='relu')(x)
-    x = layers.BatchNormalization()(x)
+    x = layers.Dense(16, activation='relu')(x)
     
     # Position head
-    pos_branch = layers.Dense(64, activation='relu')(x)
+    pos_branch = layers.Dense(16, activation='relu')(x)
     pos_output = layers.Dense(3, name='position')(pos_branch)
     
     # Quaternion head
-    quat_branch = layers.Dense(64, activation='relu')(x)
+    quat_branch = layers.Dense(16, activation='relu')(x)
     quat_raw = layers.Dense(4)(quat_branch)
     quat_output = layers.Lambda(
         lambda q: tf.math.l2_normalize(q, axis=-1), 
@@ -64,9 +59,19 @@ def build_forward_model():
 def train():
     df = pd.read_csv("robot_data_fixed.csv")
     
-    X = df[['act1_norm', 'act2_norm']].values
-    Y_pos = df[['x', 'y', 'z']].values
-    Y_quat = df[['qx', 'qy', 'qz', 'qw']].values
+    # Proper train/test split
+    df['case_base'] = df['case'].apply(lambda c: c.replace('\\', '/').split('/')[-1])
+    test_cases = ['Case7.csv', 'Case8.csv']
+    
+    train_df = df[~df['case_base'].isin(test_cases)].copy()
+    test_df = df[df['case_base'].isin(test_cases)].copy()
+    
+    test_df.to_csv("test_data.csv", index=False)
+    print(f"Saved test_data.csv with {len(test_df)} test samples")
+    
+    X = train_df[['act1_norm', 'act2_norm']].values
+    Y_pos = train_df[['del_x', 'del_y', 'del_z']].values
+    Y_quat = train_df[['qx', 'qy', 'qz', 'qw']].values
     
     # Scale positions (quaternions don't need scaling, they are already unit norm)
     scaler_pos = StandardScaler()

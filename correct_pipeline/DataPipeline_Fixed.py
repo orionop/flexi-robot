@@ -9,8 +9,12 @@ def process_data():
 
     for file in case_files:
         df = pd.read_csv(file)
-        # Drop rows where any pose data is NaN
         pose_cols = ['x', 'y', 'z', 'qx', 'qy', 'qz', 'qw']
+        
+        # Interpolate missing values per RigidBody over Time to recover data
+        for col in pose_cols:
+            df[col] = df.groupby('RigidBody')[col].transform(lambda x: x.interpolate(method='linear', limit_direction='both'))
+            
         df = df.dropna(subset=pose_cols, how='any')
         
         needed_bodies = ['ST_A', 'ST_B', 'ST_C', 'ST_D', 'snake_tip']

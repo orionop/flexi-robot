@@ -16,15 +16,11 @@ def build_inverse_model():
     
     x = layers.Concatenate()([pos_input, quat_input])
     
-    x = layers.Dense(64, activation='relu')(x)
+    x = layers.Dense(16, activation='relu')(x)
     x = layers.BatchNormalization()(x)
-    x = layers.Dropout(0.1)(x)
-    
-    x = layers.Dense(128, activation='relu')(x)
+    x = layers.Dense(32, activation='relu')(x)
     x = layers.BatchNormalization()(x)
-    x = layers.Dropout(0.1)(x)
-    
-    x = layers.Dense(64, activation='relu')(x)
+    x = layers.Dense(16, activation='relu')(x)
     
     act_output = layers.Dense(2, name='actuation')(x)
     
@@ -40,9 +36,13 @@ def build_inverse_model():
 def train():
     df = pd.read_csv("robot_data_fixed.csv")
     
-    Y_act = df[['act1_norm', 'act2_norm']].values
-    X_pos = df[['x', 'y', 'z']].values
-    X_quat = df[['qx', 'qy', 'qz', 'qw']].values
+    df['case_base'] = df['case'].apply(lambda c: c.replace('\\', '/').split('/')[-1])
+    test_cases = ['Case7.csv', 'Case8.csv']
+    train_df = df[~df['case_base'].isin(test_cases)].copy()
+    
+    Y_act = train_df[['act1_norm', 'act2_norm']].values
+    X_pos = train_df[['del_x', 'del_y', 'del_z']].values
+    X_quat = train_df[['qx', 'qy', 'qz', 'qw']].values
     
     # Scale positions (quaternions stay untouched)
     scaler_pos = StandardScaler()

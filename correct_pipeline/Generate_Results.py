@@ -19,10 +19,10 @@ def generate_figures():
     plt.style.use('seaborn-v0_8-paper')
     sns.set_context("paper", font_scale=1.5)
     
-    # Load Data
-    df = pd.read_csv("robot_data_fixed.csv")
+    # Load Data (using test set)
+    df = pd.read_csv("test_data.csv")
     actuations = df[['act1_norm', 'act2_norm']].values
-    pos_true = df[['x', 'y', 'z']].values
+    pos_true = df[['del_x', 'del_y', 'del_z']].values
     quat_true = df[['qx', 'qy', 'qz', 'qw']].values
     
     # Load Models and Scalers

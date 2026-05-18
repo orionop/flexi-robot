@@ -12,10 +12,10 @@ def quaternion_loss(y_true, y_pred):
     return 1.0 - tf.square(dot)
 
 def evaluate_models():
-    # Load data
-    df = pd.read_csv("robot_data_fixed.csv")
+    # Load test data exclusively
+    df = pd.read_csv("test_data.csv")
     actuations = df[['act1_norm', 'act2_norm']].values
-    pos_true = df[['x', 'y', 'z']].values
+    pos_true = df[['del_x', 'del_y', 'del_z']].values
     quat_true = df[['qx', 'qy', 'qz', 'qw']].values
     
     # Load scalers
