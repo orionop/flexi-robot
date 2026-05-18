@@ -11,10 +11,11 @@ np.random.seed(42)
 tf.random.set_seed(42)
 
 def build_inverse_model():
-    pos_input = layers.Input(shape=(3,), name='position')
-    quat_input = layers.Input(shape=(4,), name='quaternion')
+    pos_input = layers.Input(shape=(6,), name='position')
+    rot_input = layers.Input(shape=(12,), name='rotation')
+    act_t1_input = layers.Input(shape=(4,), name='actuation_t1')
     
-    x = layers.Concatenate()([pos_input, quat_input])
+    x = layers.Concatenate()([pos_input, rot_input, act_t1_input])
     
     x = layers.Dense(16, activation='relu')(x)
     x = layers.BatchNormalization()(x)
@@ -22,9 +23,9 @@ def build_inverse_model():
     x = layers.BatchNormalization()(x)
     x = layers.Dense(16, activation='relu')(x)
     
-    act_output = layers.Dense(2, name='actuation')(x)
+    act_output = layers.Dense(4, name='actuation')(x)
     
-    model = Model(inputs=[pos_input, quat_input], outputs=act_output)
+    model = Model(inputs=[pos_input, rot_input, act_t1_input], outputs=act_output)
     
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
@@ -40,9 +41,15 @@ def train():
     test_cases = ['Case7.csv', 'Case8.csv']
     train_df = df[~df['case_base'].isin(test_cases)].copy()
     
-    Y_act = train_df[['act1_norm', 'act2_norm']].values
-    X_pos = train_df[['del_x', 'del_y', 'del_z']].values
-    X_quat = train_df[['qx', 'qy', 'qz', 'qw']].values
+    pos_cols = ['del_x', 'del_y', 'del_z', 'del_x_t1', 'del_y_t1', 'del_z_t1']
+    rot_cols = ['r6d_1', 'r6d_2', 'r6d_3', 'r6d_4', 'r6d_5', 'r6d_6', 
+                'r6d_1_t1', 'r6d_2_t1', 'r6d_3_t1', 'r6d_4_t1', 'r6d_5_t1', 'r6d_6_t1']
+    act_t1_cols = ['act_A_norm_t1', 'act_B_norm_t1', 'act_C_norm_t1', 'act_D_norm_t1']
+    
+    Y_act = train_df[['act_A_norm', 'act_B_norm', 'act_C_norm', 'act_D_norm']].values
+    X_pos = train_df[pos_cols].values
+    X_rot = train_df[rot_cols].values
+    X_act_t1 = train_df[act_t1_cols].values
     
     # Scale positions (quaternions stay untouched)
     scaler_pos = StandardScaler()
@@ -59,7 +66,8 @@ def train():
     for fold, (train_idx, val_idx) in enumerate(kf.split(Y_act)):
         print(f"\n--- Fold {fold+1}/5 ---")
         X_pos_train, X_pos_val = X_pos_scaled[train_idx], X_pos_scaled[val_idx]
-        X_quat_train, X_quat_val = X_quat[train_idx], X_quat[val_idx]
+        X_rot_train, X_rot_val = X_rot[train_idx], X_rot[val_idx]
+        X_act_t1_train, X_act_t1_val = X_act_t1[train_idx], X_act_t1[val_idx]
         Y_train, Y_val = Y_act[train_idx], Y_act[val_idx]
         
         model = build_inverse_model()
@@ -74,10 +82,10 @@ def train():
         ]
         
         history = model.fit(
-            {'position': X_pos_train, 'quaternion': X_quat_train},
+            {'position': X_pos_train, 'rotation': X_rot_train, 'actuation_t1': X_act_t1_train},
             Y_train,
             validation_data=(
-                {'position': X_pos_val, 'quaternion': X_quat_val},
+                {'position': X_pos_val, 'rotation': X_rot_val, 'actuation_t1': X_act_t1_val},
                 Y_val
             ),
             epochs=200,

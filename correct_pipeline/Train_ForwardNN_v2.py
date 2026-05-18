@@ -10,17 +10,13 @@ import joblib
 np.random.seed(42)
 tf.random.set_seed(42)
 
-def quaternion_loss(y_true, y_pred):
-    # L2 normalize just to be safe
-    y_pred = tf.math.l2_normalize(y_pred, axis=-1)
-    dot = tf.reduce_sum(y_true * y_pred, axis=-1)
-    return 1.0 - tf.square(dot)
+
 
 def position_loss(y_true, y_pred):
     return tf.reduce_mean(tf.square(y_true - y_pred), axis=-1)
 
 def build_forward_model():
-    inputs = layers.Input(shape=(2,), name='actuation')
+    inputs = layers.Input(shape=(8,), name='actuation')
     
     # Smaller backbone
     x = layers.Dense(16, activation='relu')(inputs)
@@ -33,25 +29,21 @@ def build_forward_model():
     pos_branch = layers.Dense(16, activation='relu')(x)
     pos_output = layers.Dense(3, name='position')(pos_branch)
     
-    # Quaternion head
-    quat_branch = layers.Dense(16, activation='relu')(x)
-    quat_raw = layers.Dense(4)(quat_branch)
-    quat_output = layers.Lambda(
-        lambda q: tf.math.l2_normalize(q, axis=-1), 
-        name='quaternion'
-    )(quat_raw)
+    # Rotation head (6D)
+    rot_branch = layers.Dense(16, activation='relu')(x)
+    rot_output = layers.Dense(6, name='rotation')(rot_branch)
     
-    model = Model(inputs=inputs, outputs=[pos_output, quat_output])
+    model = Model(inputs=inputs, outputs=[pos_output, rot_output])
     
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
         loss={
             'position': 'mse',
-            'quaternion': quaternion_loss
+            'rotation': 'mse'
         },
         loss_weights={
             'position': 1.0,
-            'quaternion': 5.0
+            'rotation': 5.0
         }
     )
     return model
@@ -69,9 +61,12 @@ def train():
     test_df.to_csv("test_data.csv", index=False)
     print(f"Saved test_data.csv with {len(test_df)} test samples")
     
-    X = train_df[['act1_norm', 'act2_norm']].values
+    X_cols = ['act_A_norm', 'act_B_norm', 'act_C_norm', 'act_D_norm', 
+              'act_A_norm_t1', 'act_B_norm_t1', 'act_C_norm_t1', 'act_D_norm_t1']
+    X = train_df[X_cols].values
     Y_pos = train_df[['del_x', 'del_y', 'del_z']].values
-    Y_quat = train_df[['qx', 'qy', 'qz', 'qw']].values
+    rot_cols = ['r6d_1', 'r6d_2', 'r6d_3', 'r6d_4', 'r6d_5', 'r6d_6']
+    Y_rot = train_df[rot_cols].values
     
     # Scale positions (quaternions don't need scaling, they are already unit norm)
     scaler_pos = StandardScaler()
@@ -92,7 +87,7 @@ def train():
         print(f"\n--- Fold {fold+1}/5 ---")
         X_train, X_val = X[train_idx], X[val_idx]
         Y_pos_train, Y_pos_val = Y_pos_scaled[train_idx], Y_pos_scaled[val_idx]
-        Y_quat_train, Y_quat_val = Y_quat[train_idx], Y_quat[val_idx]
+        Y_rot_train, Y_rot_val = Y_rot[train_idx], Y_rot[val_idx]
         
         model = build_forward_model()
         
@@ -107,10 +102,10 @@ def train():
         
         history = model.fit(
             X_train, 
-            {'position': Y_pos_train, 'quaternion': Y_quat_train},
+            {'position': Y_pos_train, 'rotation': Y_rot_train},
             validation_data=(
                 X_val, 
-                {'position': Y_pos_val, 'quaternion': Y_quat_val}
+                {'position': Y_pos_val, 'rotation': Y_rot_val}
             ),
             epochs=200,
             batch_size=32,

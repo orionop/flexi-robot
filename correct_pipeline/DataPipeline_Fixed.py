@@ -77,8 +77,10 @@ def process_data():
                 case_samples.append({
                     "case": file,
                     "time": time,
-                    "act1": act1,
-                    "act2": act2,
+                    "act_A": displacements['ST_A'],
+                    "act_B": displacements['ST_B'],
+                    "act_C": displacements['ST_C'],
+                    "act_D": displacements['ST_D'],
                     "x": tip_pos[0], "y": tip_pos[1], "z": tip_pos[2],
                     "del_x": tip_delta_pos[0], "del_y": tip_delta_pos[1], "del_z": tip_delta_pos[2],
                     "qx": mean_quat[0], "qy": mean_quat[1], "qz": mean_quat[2], "qw": mean_quat[3]
@@ -91,9 +93,11 @@ def process_data():
     df_raw = pd.DataFrame(all_raw_samples)
     
     # Global actuation normalization
-    max_act = max(df_raw["act1"].abs().max(), df_raw["act2"].abs().max())
-    df_raw["act1_norm"] = df_raw["act1"] / max_act
-    df_raw["act2_norm"] = df_raw["act2"] / max_act
+    max_act = df_raw[['act_A', 'act_B', 'act_C', 'act_D']].abs().max().max()
+    df_raw["act_A_norm"] = df_raw["act_A"] / max_act
+    df_raw["act_B_norm"] = df_raw["act_B"] / max_act
+    df_raw["act_C_norm"] = df_raw["act_C"] / max_act
+    df_raw["act_D_norm"] = df_raw["act_D"] / max_act
     
     # Data Augmentation (SLERP interpolation)
     print(f"Raw samples: {len(df_raw)}")
@@ -128,17 +132,22 @@ def process_data():
                 rotations = Rotation.from_quat([q1, q2])
                 slerp = Slerp([0, 1], rotations)
                 interp_quats = slerp(t_vals).as_quat()
-            except:
+            except Exception as e:
+                print(f"Slerp failed: {e}")
                 continue # Skip if slerp fails
                 
             for j, t in enumerate(t_vals):
                 new_row = {
                     "case": case_name,
                     "time": row1["time"] + t * (row2["time"] - row1["time"]),
-                    "act1": (1-t)*row1["act1"] + t*row2["act1"],
-                    "act2": (1-t)*row1["act2"] + t*row2["act2"],
-                    "act1_norm": (1-t)*row1["act1_norm"] + t*row2["act1_norm"],
-                    "act2_norm": (1-t)*row1["act2_norm"] + t*row2["act2_norm"],
+                    "act_A": (1-t)*row1["act_A"] + t*row2["act_A"],
+                    "act_B": (1-t)*row1["act_B"] + t*row2["act_B"],
+                    "act_C": (1-t)*row1["act_C"] + t*row2["act_C"],
+                    "act_D": (1-t)*row1["act_D"] + t*row2["act_D"],
+                    "act_A_norm": (1-t)*row1["act_A_norm"] + t*row2["act_A_norm"],
+                    "act_B_norm": (1-t)*row1["act_B_norm"] + t*row2["act_B_norm"],
+                    "act_C_norm": (1-t)*row1["act_C_norm"] + t*row2["act_C_norm"],
+                    "act_D_norm": (1-t)*row1["act_D_norm"] + t*row2["act_D_norm"],
                     "x": (1-t)*row1["x"] + t*row2["x"],
                     "y": (1-t)*row1["y"] + t*row2["y"],
                     "z": (1-t)*row1["z"] + t*row2["z"],
@@ -156,6 +165,26 @@ def process_data():
         
     df_aug = pd.DataFrame(augmented_samples)
     print(f"Augmented samples: {len(df_aug)}")
+    
+    # 6D Rotation Representation
+    matrices = Rotation.from_quat(df_aug[['qx', 'qy', 'qz', 'qw']].values).as_matrix()
+    df_aug['r6d_1'] = matrices[:, 0, 0]
+    df_aug['r6d_2'] = matrices[:, 1, 0]
+    df_aug['r6d_3'] = matrices[:, 2, 0]
+    df_aug['r6d_4'] = matrices[:, 0, 1]
+    df_aug['r6d_5'] = matrices[:, 1, 1]
+    df_aug['r6d_6'] = matrices[:, 2, 1]
+    
+    # Hysteresis (History window t-1)
+    df_aug = df_aug.sort_values(['case', 'time']).reset_index(drop=True)
+    cols_to_shift = ['act_A_norm', 'act_B_norm', 'act_C_norm', 'act_D_norm', 
+                     'del_x', 'del_y', 'del_z', 
+                     'r6d_1', 'r6d_2', 'r6d_3', 'r6d_4', 'r6d_5', 'r6d_6',
+                     'qx', 'qy', 'qz', 'qw']
+    for col in cols_to_shift:
+        df_aug[f'{col}_t1'] = df_aug.groupby('case')[col].shift(1)
+        
+    df_aug = df_aug.dropna().reset_index(drop=True)
     
     # Save the data
     df_aug.to_csv("robot_data_fixed.csv", index=False)
